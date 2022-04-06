@@ -88,13 +88,44 @@ namespace Microsoft.Azure.Commands.ResourceManager.Cmdlets.SdkClient
             return new PSTemplateSpec(templateSpec, new[] { specificVersion });
         }
 
+        public PSTemplateSpec GetBuiltInTemplateSpec(string templateSpecName,
+            string templateSpecVersion = null)
+        {
+            var templateSpec = this.GetAzureSdkTemplateSpec(resourceGroupName: null, templateSpecName);
+
+            if (templateSpecVersion == null)
+            {
+                List<TemplateSpecVersion> allVersions = new List<TemplateSpecVersion>();
+
+                var versionPage = TemplateSpecsClient.TemplateSpecVersions.ListBuiltIns(templateSpecName);
+                allVersions.AddRange(versionPage);
+
+                while (versionPage.NextPageLink != null)
+                {
+                    versionPage = TemplateSpecsClient.TemplateSpecVersions.ListBuiltInsNext(versionPage.NextPageLink);
+                    allVersions.AddRange(versionPage);
+                }
+
+                return new PSTemplateSpec(templateSpec, allVersions.ToArray());
+            }
+
+            // We have a specific version specified:
+
+            TemplateSpecVersion specificVersion = TemplateSpecsClient.TemplateSpecVersions.GetBuiltIn(
+                templateSpecName,
+                templateSpecVersion
+            );
+
+            return new PSTemplateSpec(templateSpec, new[] { specificVersion });
+        }
+
         public IEnumerable<PSTemplateSpec> ListTemplateSpecsBySubscription()
         {
             var list = new List<PSTemplateSpec>();
 
             var templateSpecs = TemplateSpecsClient.TemplateSpecs.ListBySubscription();
 
-            list.AddRange(templateSpecs.Select(ts=>PSTemplateSpec.FromAzureSDKTemplateSpec(ts)));
+            list.AddRange(templateSpecs.Select(ts => PSTemplateSpec.FromAzureSDKTemplateSpec(ts)));
 
             while (templateSpecs.NextPageLink != null)
             {
@@ -125,6 +156,25 @@ namespace Microsoft.Azure.Commands.ResourceManager.Cmdlets.SdkClient
             return list;
         }
 
+        public IEnumerable<PSTemplateSpec> ListBuiltInTemplateSpecs()
+        {
+            var list = new List<PSTemplateSpec>();
+
+            var templateSpecs = TemplateSpecsClient.TemplateSpecs.ListBuiltIns();
+
+            list.AddRange(templateSpecs.Select(ts => PSTemplateSpec.FromAzureSDKTemplateSpec(ts)));
+
+            while (templateSpecs.NextPageLink != null)
+            {
+                templateSpecs =
+                    TemplateSpecsClient.TemplateSpecs.ListBuiltInsNext(templateSpecs.NextPageLink);
+
+                list.AddRange(templateSpecs.Select(ts => PSTemplateSpec.FromAzureSDKTemplateSpec(ts)));
+            }
+
+            return list;
+        }
+
         private TemplateSpec GetAzureSdkTemplateSpec(
             string resourceGroupName,
             string templateSpecName,
@@ -132,12 +182,14 @@ namespace Microsoft.Azure.Commands.ResourceManager.Cmdlets.SdkClient
         {
             try
             {
-                return TemplateSpecsClient.TemplateSpecs.Get(resourceGroupName, templateSpecName);
+                return resourceGroupName != null
+                    ? TemplateSpecsClient.TemplateSpecs.Get(resourceGroupName, templateSpecName)
+                    : TemplateSpecsClient.TemplateSpecs.GetBuiltIn(templateSpecName);
             }
             catch (Exception ex)
             {
-                if (!throwIfNotExists && 
-                    ex is TemplateSpecsErrorException dex && 
+                if (!throwIfNotExists &&
+                    ex is TemplateSpecsErrorException dex &&
                     dex.Response.StatusCode == System.Net.HttpStatusCode.NotFound)
                 {
                     // Template spec does not exist
@@ -157,7 +209,7 @@ namespace Microsoft.Azure.Commands.ResourceManager.Cmdlets.SdkClient
             try
             {
                 return TemplateSpecsClient.TemplateSpecVersions.Get(
-                    resourceGroupName, 
+                    resourceGroupName,
                     templateSpecName,
                     templateSpecVersion
                 );
@@ -212,23 +264,23 @@ namespace Microsoft.Azure.Commands.ResourceManager.Cmdlets.SdkClient
                 LinkedTemplates = packagedTemplate.Artifacts?.ToList(),
                 Description = versionDescription ?? existingTemplateSpecVersion?.Description,
                 UiFormDefinition = packagedTemplate.UIFormDefinition
-        };
+            };
 
             // Handle our conditional tagging:
             // ------------------------------------------
 
-            if (versionTags != null) 
+            if (versionTags != null)
             {
                 // Explicit version tags provided. Use them:
-                templateSpecVersionModel.Tags = 
+                templateSpecVersionModel.Tags =
                     TagsConversionHelper.CreateTagDictionary(versionTags, true);
-            } 
-            else if (existingTemplateSpecVersion != null) 
+            }
+            else if (existingTemplateSpecVersion != null)
             {
                 // No tags were provided. The template spec version already exists
                 // ... keep the existing version's tags:
                 templateSpecVersionModel.Tags = existingTemplateSpecVersion.Tags;
-            } 
+            }
             else
             {
                 // No tags were provided. The template spec version does not already exist
@@ -272,7 +324,7 @@ namespace Microsoft.Azure.Commands.ResourceManager.Cmdlets.SdkClient
 
         public void DeleteTemplateSpec(
             string resourceGroupName,
-            string templateSpecName, 
+            string templateSpecName,
             string version = null)
         {
             // Note we don't check if version is whitespace or "" because we want to

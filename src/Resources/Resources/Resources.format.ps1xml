@@ -174,7 +174,7 @@
         </ListEntries>
       </ListControl>
     </View>
-        <View>
+    <View>
       <Name>Microsoft.Azure.Commands.Resources.Models.ManagementGroups.PSManagementGroup</Name>
       <ViewSelectedBy>
         <TypeName>Microsoft.Azure.Commands.Resources.Models.ManagementGroups.PSManagementGroup</TypeName>
@@ -372,10 +372,16 @@
               </ListItem>
               <ListItem>
                 <Label>ResourceGroupName</Label>
+                <ItemSelectionCondition>
+                  <ScriptBlock>$_.ResourceGroupName -ne $null</ScriptBlock>
+                </ItemSelectionCondition>
                 <PropertyName>ResourceGroupName</PropertyName>
               </ListItem>
               <ListItem>
                 <Label>SubscriptionId</Label>
+                <ItemSelectionCondition>
+                  <ScriptBlock>$_.SubscriptionId -ne $null</ScriptBlock>
+                </ItemSelectionCondition>
                 <PropertyName>SubscriptionId</PropertyName>
               </ListItem>
               <ListItem>

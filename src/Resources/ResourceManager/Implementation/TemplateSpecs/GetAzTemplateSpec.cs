@@ -12,6 +12,7 @@
 // limitations under the License.
 // ----------------------------------------------------------------------------------
 
+using Microsoft.Azure.Commands.ResourceManager.Cmdlets.Attributes;
 using Microsoft.Azure.Commands.ResourceManager.Cmdlets.Components;
 using Microsoft.Azure.Commands.ResourceManager.Cmdlets.SdkModels;
 using Microsoft.Azure.Commands.ResourceManager.Common;
@@ -32,7 +33,9 @@ namespace Microsoft.Azure.Commands.ResourceManager.Cmdlets.Implementation
         #region Cmdlet Parameters and Parameter Set Definitions
 
         internal const string ListTemplateSpecsParameterSet = nameof(ListTemplateSpecsParameterSet);
+        internal const string ListBuiltInTemplateSpecsParameterSet = nameof(ListBuiltInTemplateSpecsParameterSet);
         internal const string GetTemplateSpecByNameParameterSet = nameof(GetTemplateSpecByNameParameterSet);
+        internal const string GetBuiltInTemplateSpecByNameParameterSet = nameof(GetBuiltInTemplateSpecByNameParameterSet);
         internal const string GetTemplateSpecByIdParameterSet = nameof(GetTemplateSpecByIdParameterSet);
 
         [Parameter(Position = 0, ParameterSetName = ListTemplateSpecsParameterSet, Mandatory = false, ValueFromPipelineByPropertyName = true, HelpMessage = "The name of the resource group.")]
@@ -42,14 +45,16 @@ namespace Microsoft.Azure.Commands.ResourceManager.Cmdlets.Implementation
         public string ResourceGroupName { get; set; }
 
         [Parameter(Position = 1, ParameterSetName = GetTemplateSpecByNameParameterSet, Mandatory = true, ValueFromPipelineByPropertyName = true, HelpMessage = "The name of the template spec.")]
+        [Parameter(Position = 1, ParameterSetName = GetBuiltInTemplateSpecByNameParameterSet, Mandatory = true, ValueFromPipelineByPropertyName = true, HelpMessage = "The name of the template spec.")]
         [ValidateNotNullOrEmpty]
-        [ResourceNameCompleter("Microsoft.Resources/templateSpecs", "ResourceGroupName")]
+        [TemplateSpecNameCompleter(nameof(Builtin), nameof(ResourceGroupName), nameof(Name))]
         public string Name { get; set; }
 
         [Parameter(Position = 2, ParameterSetName = GetTemplateSpecByNameParameterSet, Mandatory = false, ValueFromPipelineByPropertyName = true, HelpMessage = "The version of the template spec.")]
+        [Parameter(Position = 2, ParameterSetName = GetBuiltInTemplateSpecByNameParameterSet, Mandatory = false, ValueFromPipelineByPropertyName = true, HelpMessage = "The version of the template spec.")]
         [Parameter(Position = 1, ParameterSetName = GetTemplateSpecByIdParameterSet, Mandatory = false, ValueFromPipelineByPropertyName = true, HelpMessage = "The version of the template spec.")]
         [ValidateNotNullOrEmpty]
-        [ResourceNameCompleter("Microsoft.Resources/templateSpecs/versions", "ResourceGroupName", "Name")]
+        [TemplateSpecVersionNameCompleter(nameof(Builtin), nameof(ResourceGroupName), nameof(Name))]
         public string Version { get; set; }
 
         [Alias("Id")]
@@ -58,6 +63,10 @@ namespace Microsoft.Azure.Commands.ResourceManager.Cmdlets.Implementation
         [ValidateNotNullOrEmpty]
         [ResourceIdCompleter("Microsoft.Resources/templateSpecs")]
         public string ResourceId { get; set; }
+
+        [Parameter(Position = 0, ParameterSetName = GetBuiltInTemplateSpecByNameParameterSet, Mandatory = true, ValueFromPipelineByPropertyName = true, HelpMessage = "Get a built-in template spec.")]
+        [Parameter(ParameterSetName = ListBuiltInTemplateSpecsParameterSet, Mandatory = true, HelpMessage = "List built-in template specs.")]
+        public SwitchParameter Builtin { get; set; }
 
         #endregion
 
@@ -70,18 +79,38 @@ namespace Microsoft.Azure.Commands.ResourceManager.Cmdlets.Implementation
                 switch (ParameterSetName)
                 {
                     case GetTemplateSpecByNameParameterSet:
+                    case GetBuiltInTemplateSpecByNameParameterSet:
                         WriteObject(
-                            TemplateSpecsSdkClient.GetTemplateSpec(Name, ResourceGroupName, Version)
+                            Builtin
+                                ? TemplateSpecsSdkClient.GetBuiltInTemplateSpec(Name, Version)
+                                : TemplateSpecsSdkClient.GetTemplateSpec(Name, ResourceGroupName, Version)
                         );
                         break;
                     case GetTemplateSpecByIdParameterSet:
-                        WriteObject(
-                            TemplateSpecsSdkClient.GetTemplateSpec(
-                                ResourceIdUtility.GetResourceName(this.ResourceId),
-                                ResourceIdUtility.GetResourceGroupName(this.ResourceId),
-                                Version
-                            )
-                        );
+
+                        bool isBuiltIn = ResourceIdUtility.GetResourceType(this.ResourceId)?.Equals(
+                            "Microsoft.Resources/builtInTemplateSpecs",
+                            StringComparison.OrdinalIgnoreCase) == true;
+
+                        if (isBuiltIn)
+                        {
+                            WriteObject(
+                                TemplateSpecsSdkClient.GetBuiltInTemplateSpec(
+                                    ResourceIdUtility.GetResourceName(this.ResourceId),
+                                    Version
+                                )
+                            );
+                        }
+                        else
+                        {
+                            WriteObject(
+                                TemplateSpecsSdkClient.GetTemplateSpec(
+                                    ResourceIdUtility.GetResourceName(this.ResourceId),
+                                    ResourceIdUtility.GetResourceGroupName(this.ResourceId),
+                                    Version
+                                )
+                            );
+                        }
                         break;
                     case ListTemplateSpecsParameterSet:
                         var templateSpecs = !string.IsNullOrEmpty(ResourceGroupName)
@@ -90,13 +119,23 @@ namespace Microsoft.Azure.Commands.ResourceManager.Cmdlets.Implementation
 
                         var templateSpecListItems = templateSpecs
                             .Select(ts => PSTemplateSpecListItem.FromTemplateSpec(ts))
-                            .GroupBy(ts=>ts.Id).Select(g=>g.First()) // Required due to current backend bug returning duplicates
-                            .OrderBy(ts=>ts.ResourceGroupName)
-                            .ThenBy(ts=>ts.Name)
+                            .GroupBy(ts => ts.Id).Select(g => g.First()) // Required due to current backend bug returning duplicates
+                            .OrderBy(ts => ts.ResourceGroupName)
+                            .ThenBy(ts => ts.Name)
                             .Distinct()
                             .ToList();
 
                         WriteObject(templateSpecListItems);
+                        break;
+                    case ListBuiltInTemplateSpecsParameterSet:
+                        var builtInTemplateSpecs = TemplateSpecsSdkClient.ListBuiltInTemplateSpecs();
+                        var builtIntemplateSpecListItems = builtInTemplateSpecs
+                            .Select(ts => PSTemplateSpecListItem.FromTemplateSpec(ts))
+                            .OrderBy(ts => ts.Name)
+                            .Distinct()
+                            .ToList();
+
+                        WriteObject(builtIntemplateSpecListItems);
                         break;
                     default:
                         throw new PSInvalidOperationException();
