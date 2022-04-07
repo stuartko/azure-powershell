@@ -24,19 +24,30 @@ Get-AzTemplateSpec [-ResourceGroupName] <String> [-Name] <String> [[-Version] <S
  [-DefaultProfile <IAzureContextContainer>] [<CommonParameters>]
 ```
 
+### GetBuiltInTemplateSpecByNameParameterSet
+```
+Get-AzTemplateSpec [-Name] <String> [[-Version] <String>] [-Builtin] [-DefaultProfile <IAzureContextContainer>]
+ [<CommonParameters>]
+```
+
 ### GetTemplateSpecByIdParameterSet
 ```
 Get-AzTemplateSpec [[-Version] <String>] [-ResourceId] <String> [-DefaultProfile <IAzureContextContainer>]
  [<CommonParameters>]
 ```
 
+### ListBuiltInTemplateSpecsParameterSet
+```
+Get-AzTemplateSpec [-Builtin] [-DefaultProfile <IAzureContextContainer>] [<CommonParameters>]
+```
+
 ## DESCRIPTION
-This cmdlet can be used to list Template Specs in a subscription/resource group or get a specific Template Spec 
-by name or id. When getting a specific Template Spec by name/id a specific version can optionally be retrieved
+This cmdlet can be used to list Template Specs in a subscription/resource group, list built-in Template Specs or get a 
+Template Spec by name or id. When getting a specific Template Spec by name/id a specific version can optionally be retrieved
 by specifying a version name through the **-Version** parameter. When **-Version** is used, only the specific version 
 details will be present within **.Versions* on the returned Template Spec object. If no specific version 
 is specified when retrieving a Template Spec by name/id, all versions will be present within the  **.Versions*
-property of the returned object.
+property of the returned object. 
 
 **Note**: When listing all Template Specs within a subscription or resource group, each returned Template Spec's
  *".Versions"* property will be *null*. Version information is only included when -Name or -ResourceId parameters
@@ -58,7 +69,15 @@ Get-AzTemplateSpec -ResourceGroupName 'myRG'
 
 Lists all Template Specs in the resource group 'myRG' of the current subscription.
 
-### Example 3: Get Template Spec (with all versions) by name
+### Example 3: List available built-in Template Specs
+```powershell
+Get-AzTemplateSpec -BuiltIn
+```
+
+Lists all available built-in Template Specs.
+
+
+### Example 4: Get Template Spec (with all versions) by name
 ```powershell
 Get-AzTemplateSpec -ResourceGroupName 'myRG' -Name 'MyTemplateSpec'
 ```
@@ -68,7 +87,7 @@ Gets information about the Template Spec named 'MyTemplateSpec' within the resou
 **Note**: All of the Template Spec's versions will be present within the "*.Versions*" property 
 of the return object.
 
-### Example 4: Get Template Spec (specific version) by name
+### Example 5: Get Template Spec (specific version) by name
 ```powershell
 Get-AzTemplateSpec -ResourceGroupName 'myRG' -Name 'MyTemplateSpec' -Version 'v1.0'
 ```
@@ -77,7 +96,7 @@ Gets information about version 'v1.0' of the Template Spec named 'MyTemplateSpec
 
 **Note**: The *".Versions"* property of the returned object will contain only the specific version requested.
 
-### Example 5: Get Template Spec (with all versions) by resource id
+### Example 6: Get Template Spec (with all versions) by resource id
 ```powershell
 Get-AzTemplateSpec -ResourceId '/subscriptions/{subId}/resourceGroups/myRG/providers/Microsoft.Resources/templateSpecs/MyTemplateSpec'
 ```
@@ -87,7 +106,7 @@ Gets information about the Template Spec named 'MyTemplateSpec' within the resou
 **Note**: All of the Template Spec's versions will be present within the "*.Versions*" property 
 of the return object.
 
-### Example 6: Get Template Spec (specific version) by resource id
+### Example 7: Get Template Spec (specific version) by resource id
 ```powershell
 Get-AzTemplateSpec -ResourceId '/subscriptions/{subId}/resourceGroups/myRG/providers/Microsoft.Resources/templateSpecs/MyTemplateSpec' -Version 'v1.0'
 ```
@@ -97,6 +116,33 @@ Gets information about version 'v1.0' of the Template Spec named 'MyTemplateSpec
 **Note**: The *".Versions"* property of the returned object will contain only the specific version requested.
 
 ## PARAMETERS
+
+### -Builtin
+Get/list built-in template specs.
+
+```yaml
+Type: System.Management.Automation.SwitchParameter
+Parameter Sets: GetBuiltInTemplateSpecByNameParameterSet
+Aliases:
+
+Required: True
+Position: 0
+Default value: None
+Accept pipeline input: True (ByPropertyName)
+Accept wildcard characters: False
+```
+
+```yaml
+Type: System.Management.Automation.SwitchParameter
+Parameter Sets: ListBuiltInTemplateSpecsParameterSet
+Aliases:
+
+Required: True
+Position: 0
+Default value: None
+Accept pipeline input: True (ByPropertyName)
+Accept wildcard characters: False
+```
 
 ### -DefaultProfile
 The credentials, account, tenant, and subscription used for communication with Azure.
@@ -118,7 +164,7 @@ The name of the template spec.
 
 ```yaml
 Type: System.String
-Parameter Sets: GetTemplateSpecByNameParameterSet
+Parameter Sets: GetTemplateSpecByNameParameterSet, GetBuiltInTemplateSpecByNameParameterSet
 Aliases:
 
 Required: True
@@ -176,7 +222,7 @@ The version of the template spec.
 
 ```yaml
 Type: System.String
-Parameter Sets: GetTemplateSpecByNameParameterSet, GetTemplateSpecByIdParameterSet
+Parameter Sets: GetTemplateSpecByNameParameterSet, GetBuiltInTemplateSpecByNameParameterSet, GetTemplateSpecByIdParameterSet
 Aliases:
 
 Required: False
