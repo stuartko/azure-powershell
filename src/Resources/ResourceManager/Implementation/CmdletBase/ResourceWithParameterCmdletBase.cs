@@ -265,30 +265,58 @@ namespace Microsoft.Azure.Commands.ResourceManager.Cmdlets.Implementation
                     !TemplateSpecId.Equals(templateSpecId, StringComparison.OrdinalIgnoreCase))
                 {
                     templateSpecId = TemplateSpecId;
-                    ResourceIdentifier resourceIdentifier = new ResourceIdentifier(templateSpecId);
-                    if(!resourceIdentifier.ResourceType.Equals("Microsoft.Resources/templateSpecs/versions", StringComparison.OrdinalIgnoreCase))
+
+                    string resourceType = ResourceIdUtility.GetResourceType(templateSpecId);
+
+                    bool isBuiltInVersion = resourceType?.Equals(
+                        "Microsoft.Resources/builtInTemplateSpecs/versions", 
+                        StringComparison.OrdinalIgnoreCase) == true;
+
+                    bool isCustomerVersion = resourceType?.Equals(
+                        "Microsoft.Resources/templateSpecs/versions",
+                        StringComparison.OrdinalIgnoreCase) == true;
+
+                    if(!isBuiltInVersion && !isCustomerVersion)
                     {
                         throw new PSArgumentException("No version found in Resource ID");
                     }
 
-                    if (!string.IsNullOrEmpty(resourceIdentifier.Subscription) &&
-                        TemplateSpecsClient.SubscriptionId != resourceIdentifier.Subscription)
-                    {
-                        // The template spec is in a different subscription than our default
-                        // context. Force the client to use that subscription:
-                        TemplateSpecsClient.SubscriptionId = resourceIdentifier.Subscription;
-                    }
+                    TemplateSpecVersion templateSpecVersion = null;
+
                     JObject templateObj = (JObject)null;
                     try
                     {
-                        var templateSpecVersion = TemplateSpecsClient.TemplateSpecVersions.Get(
-                            ResourceIdUtility.GetResourceGroupName(templateSpecId),
-                            ResourceIdUtility.GetResourceName(templateSpecId).Split('/')[0],
-                            resourceIdentifier.ResourceName);
+                        if (isBuiltInVersion)
+                        {
+                            var builtInResourceNameComponents = 
+                                ResourceIdUtility.GetResourceName(templateSpecId).Split('/');
+
+                            templateSpecVersion = TemplateSpecsClient.TemplateSpecVersions.GetBuiltIn(
+                                builtInResourceNameComponents.First(), // Template spec name
+                                builtInResourceNameComponents.Last()); // Version name
+                        }
+                        else
+                        {
+                            var resourceIdentifier = new ResourceIdentifier(templateSpecId);
+                            if (!string.IsNullOrEmpty(resourceIdentifier.Subscription) &&
+                                TemplateSpecsClient.SubscriptionId != resourceIdentifier.Subscription)
+                            {
+                                // The template spec is in a different subscription than our default
+                                // context. Force the client to use that subscription:
+                                TemplateSpecsClient.SubscriptionId = resourceIdentifier.Subscription;
+                            }
+
+                            templateSpecVersion = TemplateSpecsClient.TemplateSpecVersions.Get(
+                                ResourceIdUtility.GetResourceGroupName(templateSpecId),
+                                ResourceIdUtility.GetResourceName(templateSpecId).Split('/')[0],
+                                resourceIdentifier.ResourceName);
+                        }
 
                         if (!(templateSpecVersion.MainTemplate is JObject))
                         {
-                            throw new InvalidOperationException("Unexpected type."); // Sanity check
+                            // Sanity check: 
+                            throw new InvalidOperationException(
+                                $"Unexpected type '{templateSpecVersion.MainTemplate?.GetType()}'."); 
                         }
                         templateObj = (JObject)templateSpecVersion.MainTemplate;
                     }
