@@ -19,6 +19,8 @@
 -->
 
 ## Upcoming Release
+* Added support for getting/listing built-in template specs from the `Get-AzTemplateSpec` cmdlet via the new `-BuiltIn` flag
+* Added support for deploying built-in template specs from existing deployment cmdlets through the `-TemplateSpecId` parameter
 
 ## Version 5.5.0
 * Removed `-ApplicationId` from `New-AzADServicePrincipal` `SimpleParameterSet` [#17256]
